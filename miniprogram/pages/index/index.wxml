@@ -1,0 +1,80 @@
+<!--miniprogram/pages/index/index.wxml-->
+<view class="container">
+
+<!-- 状态一：正在加载 -->
+<view wx:if="{{isLoading}}" class="status-box">
+  <text class="loading-text">正在识别设备码...</text>
+</view>
+
+<!-- 状态二：出现错误 -->
+<view wx:elif="{{error}}" class="status-box error-box">
+  <image class="error-icon" src="/images/icons/close.png"></image>
+  <text class="error-text">{{error}}</text>
+  <button wx:if="{{macAddress}}" class="retry-btn" bindtap="refreshUserInfo" size="mini">重试</button>
+</view>
+
+<!-- 状态三：成功获取 MAC 地址 -->
+<view wx:elif="{{macAddress}}" class="info-container">
+  <view class="header">
+    <view class="title">设备信息</view>
+    <view class="subtitle">已成功识别您的设备</view>
+  </view>
+  
+  <view class="card">
+    <view class="card-item">
+      <text class="label">设备 MAC 地址</text>
+      <text class="value">{{macAddress}}</text>
+    </view>
+    
+    <!-- 用户信息加载状态 -->
+    <view wx:if="{{isLoadingUserInfo}}" class="card-item">
+      <text class="label">用户信息</text>
+      <text class="loading-text-small">加载中...</text>
+    </view>
+    
+    <!-- 用户信息显示 -->
+    <view wx:elif="{{userInfo}}" class="user-info-section">
+      <!-- 账户余额 -->
+      <view class="card-item">
+        <text class="label">账户余额</text>
+        <text class="value balance">￥{{balance}}</text>
+      </view>
+      
+      <!-- 电量信息 -->
+      <view class="card-item">
+        <text class="label">当前电量</text>
+        <view class="battery-container">
+          <view class="battery-info">
+            <text class="battery-text">{{batteryLevel}}%</text>
+            <view class="battery-bar">
+              <view class="battery-fill" style="width: {{batteryLevel}}%; background-color: {{batteryLevel > 20 ? '#07c160' : '#ee0a24'}}"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 使用统计 -->
+      <view class="card-item">
+        <text class="label">总使用次数</text>
+        <text class="value">{{totalRequests}}次</text>
+      </view>
+      
+      <view class="card-item">
+        <text class="label">总消费金额</text>
+        <text class="value cost">￥{{totalCost}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="button-group">
+    <button class="recharge-btn" type="primary" bindtap="onRechargeClick">为该设备充值</button>
+    <button class="refresh-btn-large" bindtap="refreshUserInfo" size="mini">刷新信息</button>
+  </view>
+</view>
+
+<!-- 状态四：默认状态（直接打开小程序而不是扫码） -->
+<view wx:else class="status-box">
+  <text>请通过扫描设备二维码进入</text>
+</view>
+
+</view>
