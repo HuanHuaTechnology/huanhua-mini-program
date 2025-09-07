@@ -11,5 +11,10 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于蓝牙扫描附近设备（部分机型需要打开定位权限）"
+    }
+  }
 }

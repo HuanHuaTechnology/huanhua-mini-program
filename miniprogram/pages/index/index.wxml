@@ -70,6 +70,27 @@
     <button class="recharge-btn" type="primary" bindtap="onRechargeClick">为该设备充值</button>
     <button class="refresh-btn-large" bindtap="refreshUserInfo" size="mini">刷新信息</button>
   </view>
+
+  <!-- 蓝牙配网区域 -->
+  <view class="card ble-card">
+    <view class="card-item">
+      <text class="label">WiFi 名称</text>
+      <input class="value" placeholder="请输入 WiFi SSID" value="{{provisionSsid}}" bindinput="onInputSsid" />
+    </view>
+    <view class="card-item">
+      <text class="label">WiFi 密码</text>
+      <input class="value" password placeholder="请输入 WiFi 密码" value="{{provisionPwd}}" bindinput="onInputPwd" />
+    </view>
+    <view class="button-group">
+      <button class="recharge-btn" bindtap="onScanBleClick">扫描附近设备</button>
+      <button class="recharge-btn" bindtap="onSendProvisionClick" type="primary">发送到设备</button>
+    </view>
+    <view wx:if="{{bleDeviceName}}" class="card-item">
+      <text class="label">已连接设备</text>
+      <text class="value">{{bleDeviceName}}</text>
+    </view>
+  </view>
+
 </view>
 
 <!-- 状态四：默认状态（直接打开小程序而不是扫码） -->

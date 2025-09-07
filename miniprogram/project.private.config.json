@@ -1,0 +1,27 @@
+{
+    "libVersion": "3.8.10",
+    "projectname": "illusion",
+    "setting": {
+        "urlCheck": true,
+        "coverView": true,
+        "lazyloadPlaceholderEnable": false,
+        "skylineRenderEnable": false,
+        "preloadBackgroundData": false,
+        "autoAudits": false,
+        "showShadowRootInWxmlPanel": true,
+        "compileHotReLoad": true
+    },
+    "condition": {
+        "miniprogram": {
+            "list": [
+                {
+                    "name": "pages/index/index",
+                    "pathName": "pages/index/index",
+                    "query": "mac=19:13:6A:AC:06:2D",
+                    "scene": null,
+                    "launchMode": "default"
+                }
+            ]
+        }
+    }
+}

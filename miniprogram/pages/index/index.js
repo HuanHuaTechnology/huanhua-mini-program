@@ -12,7 +12,14 @@ Page({
       balance: null,    // 用户余额
       totalRequests: null, // 总请求数
       totalCost: null,  // 总花费
-      isLoadingUserInfo: false // 控制用户信息加载状态
+      isLoadingUserInfo: false, // 控制用户信息加载状态
+      // BLE 配网
+      provisionSsid: '',
+      provisionPwd: '',
+      bleDeviceId: null,
+      bleDeviceName: null,
+      bleServiceId: '0000fff0-0000-1000-8000-00805f9b34fb',
+      bleWriteCharId: '0000fff1-0000-1000-8000-00805f9b34fb'
     },
   
     /**
@@ -58,6 +65,141 @@ Page({
           error: '无效的二维码或参数，请扫描正确的设备码。'
         });
       }
+    },
+  
+    /** BLE 配网：输入 **/
+    onInputSsid(e) {
+      this.setData({ provisionSsid: e.detail.value });
+    },
+    onInputPwd(e) {
+      this.setData({ provisionPwd: e.detail.value });
+    },
+  
+    /** 扫描并连接 BLE 设备 **/
+    onScanBleClick() {
+      wx.openBluetoothAdapter({
+        success: () => {
+          wx.startBluetoothDevicesDiscovery({
+            allowDuplicatesKey: false,
+            powerLevel: 'high',
+            success: () => {
+              // 简化：监听一次回调后立即停止扫描并连接首个匹配设备（包含 Xiaozhi 或提供 FFF0 服务）
+              const onFound = (res) => {
+                const devices = res.devices || [];
+                const target = devices.find(d => (d.name && d.name.includes('Xiaozhi')) || (d.advertisServiceUUIDs || []).some(u => /fff0/i.test(u)));
+                if (target) {
+                  wx.offBluetoothDeviceFound(onFound);
+                  wx.stopBluetoothDevicesDiscovery({});
+                  this.connectBle(target);
+                }
+              };
+              wx.onBluetoothDeviceFound(onFound);
+              // 兜底：5 秒后停止
+              setTimeout(() => {
+                wx.stopBluetoothDevicesDiscovery({});
+              }, 5000);
+            }
+          });
+        },
+        fail: (err) => {
+          wx.showToast({ title: '蓝牙未开启', icon: 'none' });
+          console.error(err);
+        }
+      });
+    },
+  
+    connectBle(device) {
+      wx.createBLEConnection({
+        deviceId: device.deviceId,
+        success: () => {
+          this.setData({ bleDeviceId: device.deviceId, bleDeviceName: device.name || device.localName || '设备' });
+          // 使能通知（不强求）
+          wx.getBLEDeviceServices({
+            deviceId: device.deviceId,
+            success: (res) => {
+              console.log('services:', res.services);
+              // 可选：检查是否存在期望服务
+            }
+          });
+        },
+        fail: (err) => {
+          wx.showToast({ title: '连接失败', icon: 'none' });
+          console.error(err);
+        }
+      });
+    },
+  
+    /** 发送凭据 **/
+    onSendProvisionClick() {
+      const { provisionSsid, provisionPwd, bleDeviceId, bleServiceId, bleWriteCharId } = this.data;
+      if (!bleDeviceId) {
+        wx.showToast({ title: '请先连接设备', icon: 'none' });
+        return;
+      }
+      if (!provisionSsid) {
+        wx.showToast({ title: '请输入WiFi名称', icon: 'none' });
+        return;
+      }
+      const payload = `${provisionSsid}\n${provisionPwd || ''}`;
+      const buffer = (function utf8Encode(str) {
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+          let code = str.charCodeAt(i);
+          if (code < 0x80) {
+            bytes.push(code);
+          } else if (code < 0x800) {
+            bytes.push(0xc0 | (code >> 6));
+            bytes.push(0x80 | (code & 0x3f));
+          } else if (code >= 0xd800 && code <= 0xdbff) {
+            const hi = code;
+            const low = str.charCodeAt(++i);
+            const cp = ((hi - 0xd800) << 10) + (low - 0xdc00) + 0x10000;
+            bytes.push(0xf0 | (cp >> 18));
+            bytes.push(0x80 | ((cp >> 12) & 0x3f));
+            bytes.push(0x80 | ((cp >> 6) & 0x3f));
+            bytes.push(0x80 | (cp & 0x3f));
+          } else {
+            bytes.push(0xe0 | (code >> 12));
+            bytes.push(0x80 | ((code >> 6) & 0x3f));
+            bytes.push(0x80 | (code & 0x3f));
+          }
+        }
+        return new Uint8Array(bytes);
+      })(payload);
+
+      // 分片写入（每包最多 20 字节，兼容多数机型）
+      const mtu = 20;
+      let offset = 0;
+      const writeNext = () => {
+        if (offset >= buffer.length) {
+          wx.showToast({ title: '已发送', icon: 'success' });
+          return;
+        }
+        const slice = buffer.slice(offset, Math.min(offset + mtu, buffer.length));
+        offset += slice.length;
+        wx.writeBLECharacteristicValue({
+          deviceId: bleDeviceId,
+          serviceId: bleServiceId,
+          characteristicId: bleWriteCharId,
+          value: slice.buffer,
+          success: () => writeNext(),
+          fail: (err) => {
+            console.error('write failed', err);
+            wx.showToast({ title: '发送失败', icon: 'none' });
+          }
+        });
+      };
+
+      // 确保已获取特征（部分机型需要先调用 getBLEDeviceCharacteristics）
+      wx.getBLEDeviceCharacteristics({
+        deviceId: bleDeviceId,
+        serviceId: bleServiceId,
+        success: () => writeNext(),
+        fail: (err) => {
+          console.error('get chars failed', err);
+          wx.showToast({ title: '蓝牙服务不可用', icon: 'none' });
+        }
+      });
     },
   
     /**
